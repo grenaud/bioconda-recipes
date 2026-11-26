@@ -1,66 +1,110 @@
 {% set name = "gargammel" %}
-{% set version = "1.1.4" %}
-{% set sha256_gargammel = "620631e18ee2b4094a154a85cbd2fba9a5771c04daa028d7d1401f8a115a2963" %}
-{% set sha256_libgab = "2cadc9dedccbd19f274585b830ecc3ecde635a001e7ddd7f88ba9fe8e3a537e3" %}
+{% set version = "1.2.1" %}
+{% set sha256_gargammel = "31fdf416e39043ca89c71971e6210e1b1d8a52f77ea01de3e92bdbe16bde08af" %}
+# libgab 1.1.0 (gargammel clones libgab without a pin; adptSim needs 1.1.0 or later)
+{% set libgab_commit = "76731b7a2562d55ed59241a1f0a640bf88e593cc" %}
+{% set sha256_libgab = "d0261ed35b435c372030095cf3492eb673a1c0a774f4d8372cedf9591cf7163b" %}
+# ART MountRainier 2016.06.05, patched by gargammel (patches/art_illumina_gargammel.patch)
+{% set sha256_art = "69aede60884eb848de043aae5294274b7ca6348b7384a8380f0ac5a4dfeff488" %}
 
 package:
   name: {{ name }}
   version: {{ version }}
 
 source:
-  - url: https://github.com/grenaud/libgab/archive/304eeb83444201b4b5557e954ee6c7ffa367adc0.tar.gz
+  - url: https://github.com/grenaud/libgab/archive/{{ libgab_commit }}.tar.gz
     sha256: {{ sha256_libgab }}
     folder: gargammel/libgab
   - url: https://github.com/grenaud/gargammel/archive/refs/tags/{{ version }}.tar.gz
     sha256: {{ sha256_gargammel }}
     folder: gargammel
     patches:
-      - 0001-gargammel-Makefile-nobamtools.patch
       - 0002-libgab-Makefile-removed-CXX.patch
+  - url:
+      - https://www.niehs.nih.gov/research/resources/assets/docs/artsrcmountrainier2016.06.05linux.tgz
+      - https://www.dropbox.com/s/wf8441vslu1f1nd/artsrcmountrainier20160605linuxtgz.tgz?dl=1
+    sha256: {{ sha256_art }}
+    folder: gargammel/art_src_MountRainier_Linux
+  # license of the statically linked bamtools
+  - url: https://raw.githubusercontent.com/pezmaster31/bamtools/v2.5.3/LICENSE
+    sha256: 5e7778d3cdfaa6fd80cb653d7a95fa76b1a89231c2ce62e6d875039464743fe1
+    folder: bamtools-LICENSE
 
 build:
   number: 0
   run_exports:
     - {{ pin_subpackage('gargammel', max_pin="x") }}
+  ignore_run_exports:
+    # libbamtools.a is linked statically
+    - bamtools
+    # only needed by libgsl, which depends on it (see host)
+    - libcblas
 
 requirements:
   build:
     - make
+    - patch
+    - coreutils  # md5sum, used by the test suite run in build.sh (macOS)
     - {{ compiler('cxx') }}
-    - pkg-config
+    - {{ stdlib('c') }}
   host:
+    - bamtools
     - gsl
+    # ART links -lgslcblas, a link to libcblas in conda-forge: build against the
+    # pinned (netlib) libcblas so that art_illumina does not end up with a direct
+    # dependency on one BLAS implementation (libopenblas.so.0)
+    - libcblas
     - zlib
-    - bamtools ==2.5.3
   run:
-    - openssl
     - perl
-    - gsl
-    - art
     - samtools
+    # gargammel.pl reads plain and gzipped size files with "gunzip -f -c" (needs GNU gzip)
+    - gzip
 
 test:
+  requires:
+    - coreutils  # md5sum, used by run_test.sh
+  source_files:
+    - gargammel/tests
+    - gargammel/examplesMapDamage
+    - gargammel/src/dnacomp.txt
   commands:
-    - gargammel --help
-    - adptSim --help | grep -q 'adptSim'
-    - deamSim --help | grep -q 'deamSim'
-    - fasta2fastas --help | grep -q 'fasta2fastas'
-    - fragSim --help | grep -q 'fragSim'
+    - gargammel --help 2>&1 | grep -q "gargammel"
+    - fragSim 2>&1 | grep -q "fragSim"
+    - deamSim 2>&1 | grep -q "deamSim"
+    - adptSim 2>&1 | grep -q "adptSim"
+    - fasta2fastas 2>&1 | grep -q "fasta2fastas"
+    - damage_patterns2prof 2>&1 | grep -q "damage_patterns2prof"
+    - mapDamage2prof 2>&1 | grep -q "mapDamage2prof"
+    - ${PREFIX}/libexec/gargammel/art_illumina --help 2>&1 | grep -q -- "--gzip"
+    - test -s ${PREFIX}/libexec/gargammel/matrices/single-5.dat
 
 about:
   home: "https://github.com/grenaud/gargammel"
+  dev_url: "https://github.com/grenaud/gargammel"
+  doc_url: "https://github.com/grenaud/gargammel/blob/{{ version }}/README.md"
   license: "GPL-3.0-only"
   license_family: GPL3
-  license_file: "gargammel/LICENSE"
+  license_file:
+    - gargammel/LICENSE
+    - gargammel/libgab/LICENSE
+    - gargammel/libgab/gzstream/COPYING.LIB
+    - bamtools-LICENSE/LICENSE
+    - gargammel/art_src_MountRainier_Linux/GPLv3.txt
   summary: "Tool for simulating ancient DNA datasets."
   description: |
     gargammel is a set of programs aimed at simulating ancient DNA
-    fragments. For ancient hominin samples our program can also 
-    simulate various levels of present-day human contamination and 
-    microbial contamination.
-  dev_url: "https://github.com/grenaud/gargammel"
+    fragments. For ancient hominin samples our program can also
+    simulate various levels of present-day human contamination and
+    microbial contamination. The package includes the art_illumina
+    read simulator patched by gargammel (gzip and pipe input/output,
+    built-in seeded RNG, indel rate fix), installed as
+    $PREFIX/libexec/gargammel/art_illumina so that it does not
+    conflict with the art package.
 
 extra:
+  identifiers:
+    - doi:10.1093/bioinformatics/btw670
   additional-platforms:
     - linux-aarch64
     - osx-arm64
