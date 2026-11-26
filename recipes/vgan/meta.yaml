@@ -1,51 +1,60 @@
 {% set name = "vgan" %}
-{% set version = "3.1.0" %}
+{% set version = "4.0.1" %}
 
 package:
   name: {{ name }}
   version: {{ version }}
 
 source:
-  url: https://github.com/grenaud/vgan/releases/download/v{{ version }}/vgan
-  sha256: 705030569c24c8bc75aac7e9a6be5866df89d2221a90b9a487be85d8a07fc8b9
+  # static release binary (Linux x86_64 only)
+  - url: https://github.com/grenaud/vgan/releases/download/v{{ version }}/vgan-linux-x86_64
+    sha256: 1733f4d9029d12483818c87e43d32af0f12a6adf5bf0cf3b6705da6fac7d4c16
+  # source tree of the same tag, for the license, the damage profiles and the scripts in share/vgan
+  - url: https://github.com/grenaud/vgan/archive/refs/tags/v{{ version }}.tar.gz
+    sha256: 58bcb672c2b9554c2269f421db8ba598ad44a94b4503236ea1e3d84fde76c887
+    folder: vgan-src
 
 build:
   number: 0
-  skip: true  # [osx]
+  skip: true  # [not (linux and x86_64)]
+  binary_relocation: false
   run_exports:
     - {{ pin_subpackage('vgan', max_pin="x") }}
-  script:
-    - mkdir -p ${PREFIX}/bin
-    - cp vgan ${PREFIX}/bin/
-    - chmod +x ${PREFIX}/bin/vgan
-    - mkdir -p ${PREFIX}/share/vgan/
-    - mkdir -p ${PREFIX}/share/vgan/hcfiles/
-    - mkdir -p ${PREFIX}/share/vgan/euka_dir/
-    - mkdir -p ${PREFIX}/share/vgan/soibean_dir/
-    - mkdir -p ${PREFIX}/share/vgan/damageProfiles/
-    - wget -nc -l1 --recursive --no-parent -P ${PREFIX}/share/vgan/ ftp://ftp.healthtech.dtu.dk:/public/haplocart/hcfiles/
-    - mv -fv ${PREFIX}/share/vgan/ftp.healthtech.dtu.dk/public/haplocart/hcfiles/* ${PREFIX}/share/vgan/hcfiles
-    - rm -rf ${PREFIX}/share/vgan/ftp.healthtech.dtu.dk
-    - wget  -O ${PREFIX}/share/vgan/damageProfiles/dhigh5p.prof https://raw.githubusercontent.com/grenaud/vgan/main/share/vgan/damageProfiles/dhigh5p.prof
-    - wget  -O ${PREFIX}/share/vgan/damageProfiles/dhigh3p.prof https://raw.githubusercontent.com/grenaud/vgan/main/share/vgan/damageProfiles/dhigh3p.prof
-    - wget  -O ${PREFIX}/share/vgan/damageProfiles/none.prof    https://raw.githubusercontent.com/grenaud/vgan/main/share/vgan/damageProfiles/none.prof
 
-requirements:
-  host:
-    - wget
-  run:
-    - wget
-    
 test:
   commands:
-    - vgan version
+    - vgan version 2>&1 | grep -qx "vgan v{{ version }}"  # printed on stderr
+    - test -s ${PREFIX}/share/vgan/damageProfiles/none.prof
+    - test -f ${PREFIX}/share/vgan/plottingScripts/plot_trailmix_trees.py
+    - test -f ${PREFIX}/share/vgan/soibean_dir/tree_dir/.keep
+    - vgan 2>&1 | grep -q haplocart
 
 about:
   home: https://github.com/grenaud/vgan
-  license: GPLv3.0
-  summary: Suite of tools for pangenomics built using vg
+  dev_url: https://github.com/grenaud/vgan
+  doc_url: https://github.com/grenaud/vgan/blob/v{{ version }}/README.md
+  license: GPL-3.0-only
+  license_family: GPL3
+  license_file: vgan-src/LICENSE
+  summary: "Suite of tools for mitochondrial pangenomics built using vg: euka, HaploCart, soibean and TrailMix"
+  description: |
+    vgan is a suite of tools for mitochondrial pangenomics built on the vg
+    variation graph toolkit: HaploCart (human mtDNA haplogroup
+    classification), euka (detection of eukaryotic taxa), soibean (species
+    identification) and TrailMix (inference on ancient human mtDNA mixtures).
+    This package contains the static release binary. The database files
+    (euka_dir, hcfiles, soibean_dir, tmfiles) are separate downloads, see the
+    README: unpack them in $CONDA_PREFIX/share/vgan/ or give their location
+    with --euka_dir, --hc-files, --soibean_dir or --tm-files (for a soibean
+    database kept elsewhere, also pass --tree_dir <soibean_dir>/tree_dir).
+    TrailMix also needs the SAFARI mapper in $CONDA_PREFIX/dep/safari_vg/bin/vg, which is
+    not part of this package.
 
 extra:
+  identifiers:
+    - doi:10.1371/journal.pcbi.1011148
+    - doi:10.1111/2041-210X.14214
+    - doi:10.1093/molbev/msae203
+    - doi:10.64898/2026.11.21.768339
   skip-lints:
     - should_be_noarch_generic
-
