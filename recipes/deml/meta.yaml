@@ -1,0 +1,64 @@
+{% set name = "deml" %}
+{% set version = "1.2.1" %}
+# SimpleJSON git submodule commit at the deML v{{ version }} tag (no package exists)
+{% set simplejson_commit = "611748a1e815e9e9bc9944a8b73f7d6505e77216" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  - url: https://github.com/grenaud/deML/archive/refs/tags/v{{ version }}.tar.gz
+    sha256: 277c10407b58f761ea7119fbd1156e6a83afae4f7458ca9f6af4aef5eb39ec2e
+  # GitHub tarballs do not contain the git submodules. htslib and libgab come
+  # from their packages, SimpleJSON (two source files) is built from this commit.
+  - url: https://github.com/MJPA/SimpleJSON/archive/{{ simplejson_commit }}.tar.gz
+    sha256: 43cbd5b97308ba0fa2a40e907bd06d0f158c0fc35684186441430925a50dfd31
+    folder: SimpleJSON
+
+build:
+  number: 0
+  # the libgab package is only built for linux-64
+  skip: true  # [osx]
+  run_exports:
+    - {{ pin_subpackage(name, max_pin="x") }}
+  ignore_run_exports:
+    # libgab.a and libgzstream.a are linked statically
+    - libgab
+
+requirements:
+  build:
+    - make
+    - {{ compiler('cxx') }}
+    - {{ stdlib('c') }}
+  host:
+    - htslib
+    - libgab
+    - zlib
+
+test:
+  source_files:
+    - testData/index.txt
+  # run_test.sh: demultiplexes three read pairs given as FASTQ
+
+about:
+  home: "https://grenaud.github.io/deML/"
+  dev_url: "https://github.com/grenaud/deML"
+  doc_url: "https://github.com/grenaud/deML/blob/v{{ version }}/README.md"
+  license: GPL-3.0-only
+  license_family: GPL3
+  license_file:
+    - LICENSE
+    - SimpleJSON/LICENSE
+  summary: "Maximum likelihood demultiplexing of Illumina sequencing data"
+  description: |
+    deML assigns reads to samples using the quality scores of the index reads
+    in a likelihood framework, instead of counting mismatches against the
+    expected indices. It reads and writes BAM or FASTQ files, single or double
+    indexed, and reports the posterior probability of each assignment.
+
+extra:
+  identifiers:
+    - doi:10.1093/bioinformatics/btu719
+  recipe-maintainers:
+    - grenaud
