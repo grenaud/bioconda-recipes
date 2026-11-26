@@ -1,17 +1,24 @@
 {% set name = "leehom" %}
-{% set version = "1.2.15" %}
+{% set version = "1.3.1" %}
+# commit of the libgab git submodule at the leeHom {{ version }} tag
+{% set libgab_commit = "4a917baa1677a1aa21974a0e139a3e6fa901d222" %}
 
 package:
   name: {{ name }}
-  version: {{ version}}
+  version: {{ version }}
 
 source:
-  url: "https://github.com/grenaud/{{ name }}/archive/{{ version }}.tar.gz"
-  sha256: 29a1aec5c10d7929057e47b576e6b0c1257594768bd43db214b9f12b87e76873
+  - url: https://github.com/grenaud/leeHom/archive/refs/tags/{{ version }}.tar.gz
+    sha256: f9b7fb24080af9c8f236685f67be72ac725a61edafdce8b061266f800914d133
+  # GitHub tarballs do not contain the git submodules: libgab is fetched at the
+  # submodule commit; htslib (the other submodule) comes from the htslib package.
+  - url: https://github.com/grenaud/libgab/archive/{{ libgab_commit }}.tar.gz
+    sha256: 4b9fe0ca16090085c958dc74fc2a4a9781cd895e0b811383ec7808ff3811fb04
+    folder: libgab
 
 build:
-  number: 8
-  skip: true # [osx]
+  number: 0
+  skip: true  # [osx]
   run_exports:
     - {{ pin_subpackage("leehom", max_pin="x.x") }}
 
@@ -19,24 +26,34 @@ requirements:
   build:
     - make
     - {{ compiler('cxx') }}
+    - {{ stdlib('c') }}
   host:
+    - htslib
     - zlib
-    - bamtools
-    - libgab >=1.0.5
-    - htslib    
-  run:
-    - bamtools
-    - libgab >=1.0.5
 
 test:
   commands:
-    - test -f $PREFIX/bin/leeHom
+    - leeHom --version | grep -F "{{ version }}"
+    - leeHom 2>&1 | grep -q "leeHom"
 
 about:
   home: "https://grenaud.github.io/leeHom/"
+  dev_url: "https://github.com/grenaud/leeHom"
+  doc_url: "https://github.com/grenaud/leeHom/blob/{{ version }}/README.md"
   license: GPL-3.0-or-later
-  summary: "Maximum-likelihood adapter trimming and removal"
+  license_family: GPL3
+  license_file:
+    - LICENSE
+    - libgab/LICENSE
+    - libgab/gzstream/COPYING.LIB
+  summary: "Bayesian reconstruction of ancient DNA fragments: adapter trimming and merging of overlapping paired-end reads"
+  description: |
+    leeHom trims adapters and merges overlapping paired-end reads using a
+    Bayesian maximum a posteriori reconstruction, aimed at ancient DNA and
+    other short fragments. Input and output are BAM or FASTQ.
 
 extra:
+  identifiers:
+    - doi:10.1093/nar/gku699
   recipe-maintainers:
     - grenaud
