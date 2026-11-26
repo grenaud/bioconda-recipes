@@ -1,0 +1,22 @@
+Build with libharu 2.4.0 and later.
+
+libharu 2.4.0 changed the type of the dash pattern argument of
+HPDF_Page_SetDash() from const HPDF_UINT16 * to const HPDF_REAL *. ROHan
+pins a libharu commit from 2013 (2.3.0); conda-forge has libharu 2.4.x.
+Choose the array type from HPDF_VERSION_ID, so that both versions build.
+
+--- a/src/PdfWriter.h
++++ b/src/PdfWriter.h
+@@ -48,7 +48,12 @@
+     bool hmmPrevious;
+ } hmmprevdata;
+ 
++//libharu 2.4.0 changed the dash pattern of HPDF_Page_SetDash() from HPDF_UINT16 to HPDF_REAL
++#if defined(HPDF_VERSION_ID) && HPDF_VERSION_ID >= 20400
++const HPDF_REAL   DASH_MODE1[] = {3};
++#else
+ const HPDF_UINT16 DASH_MODE1[] = {3};
++#endif
+ 
+ class PdfWriter{
+  private:

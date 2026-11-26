@@ -1,0 +1,82 @@
+{% set name = "rohan" %}
+{% set version = "1.0.8" %}
+# rohan compiles against samtools' bedidx.c and its headers, which the samtools
+# package does not install: only those four small objects (libst.a) are built from
+# the samtools release tarball, against the htslib package.
+{% set samtools_version = "1.24" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  - url: https://github.com/grenaud/ROHan/archive/refs/tags/v{{ version }}.tar.gz
+    sha256: c3732a8e5e1afb4ab4a83177828fc2e8334a01dea36f56a386582bcd09060b7c
+    patches:
+      # HPDF_Page_SetDash() takes HPDF_REAL since libharu 2.4.0
+      - 0001-build-with-libharu-2.4.patch
+  - url: https://github.com/samtools/samtools/releases/download/{{ samtools_version }}/samtools-{{ samtools_version }}.tar.bz2
+    sha256: 89b2a440123eeaa400392ce1736e7d60ce9041843027d76819753c5a8246bfdd
+    folder: lib/samtools
+
+build:
+  number: 0
+  # the libgab package is only built for linux-64
+  skip: true  # [osx]
+  run_exports:
+    - {{ pin_subpackage(name, max_pin="x") }}
+  ignore_run_exports:
+    # libgab.a and libgzstream.a are linked statically
+    - libgab
+
+requirements:
+  build:
+    - make
+    - patch
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - {{ stdlib('c') }}
+    # only for the upstream end-to-end test at build time
+    - python
+    - samtools
+  host:
+    - gsl
+    - htslib
+    - libgab
+    - libharu
+    - zlib
+  run:
+    # bam2prof and samtools are called by estimateDamage.pl
+    - bam2prof
+    - perl
+    - samtools
+
+test:
+  # run_test.sh: the default data files resolve inside the package,
+  # estimateDamage.pl finds rohan and bam2prof, and a short rohan run on a
+  # small simulated data set gives the simulated heterozygosity
+
+about:
+  home: "https://grenaud.github.io/ROHan/"
+  dev_url: "https://github.com/grenaud/ROHan"
+  doc_url: "https://github.com/grenaud/ROHan/blob/v{{ version }}/README.md"
+  license: GPL-3.0-only
+  license_family: GPL3
+  license_file:
+    - LICENSE
+    - lib/samtools/LICENSE
+  summary: "Joint estimates of heterozygosity and runs of homozygosity for modern and ancient samples"
+  description: |
+    ROHan estimates local rates of heterozygosity from a BAM file, robust to
+    low coverage and post-mortem damage, identifies runs of homozygosity (ROH)
+    with a hidden Markov model, and reports a global heterozygosity rate
+    outside of ROH. The deamination, error and base frequency profiles and
+    the pre-computed coverage priors are installed in $PREFIX/share/rohan/,
+    where rohan finds them. Damage profiles can be computed with bam2prof
+    (a dependency) or with estimateDamage.pl.
+
+extra:
+  identifiers:
+    - doi:10.1534/genetics.119.302057
+  recipe-maintainers:
+    - grenaud
