@@ -1,0 +1,56 @@
+{% set name = "insertsize" %}
+{% set version = "1.0.2" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/grenaud/insertsize/archive/refs/tags/v{{ version }}.tar.gz
+  sha256: 6a854f90035adceae6de378ed88cbfc455fe9a6a485acd8367633485e019d32d
+
+build:
+  number: 0
+  # the libgab package is only built for linux-64
+  skip: true  # [osx]
+  run_exports:
+    - {{ pin_subpackage(name, max_pin="x") }}
+  ignore_run_exports:
+    # libgab.a and libgzstream.a are linked statically
+    - libgab
+
+requirements:
+  build:
+    - make
+    - {{ compiler('cxx') }}
+    - {{ stdlib('c') }}
+    # only for the upstream tests at build time (SAM to BAM conversion)
+    - samtools
+  host:
+    - htslib
+    - libgab
+
+test:
+  source_files:
+    - test
+  commands:
+    - insize 2>&1 | grep -q "in BAM file"
+    - INSIZE="$(command -v insize)" bash test/run_tests.sh
+
+about:
+  home: "https://github.com/grenaud/insertsize"
+  dev_url: "https://github.com/grenaud/insertsize"
+  doc_url: "https://github.com/grenaud/insertsize/blob/v{{ version }}/README.md"
+  license: GPL-3.0-or-later
+  license_family: GPL3
+  license_file: LICENSE
+  summary: "Insert (fragment) size distribution of a BAM file"
+  description: |
+    insize reads a BAM (or SAM) file and prints the insert size of each
+    fragment: the template length of paired reads and the read length of
+    single-end reads. Options restrict the output to mapped reads or properly
+    paired reads, to a length range, or print a histogram instead.
+
+extra:
+  recipe-maintainers:
+    - grenaud
