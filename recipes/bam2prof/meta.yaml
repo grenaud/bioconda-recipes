@@ -1,0 +1,69 @@
+{% set name = "bam2prof" %}
+{% set version = "1.1.1" %}
+# bam2prof compiles against samtools' bedidx.c and its headers, which the samtools
+# package does not install: only those four small objects (libst.a) are built from
+# the samtools release tarball, against the htslib package.
+{% set samtools_version = "1.24" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  - url: https://github.com/grenaud/bam2prof/archive/refs/tags/v{{ version }}.tar.gz
+    sha256: 6a6e74fa6369212ea087eb07c5d23556785bcf3ebf4a216138131b8d954f336a
+  - url: https://github.com/samtools/samtools/releases/download/{{ samtools_version }}/samtools-{{ samtools_version }}.tar.bz2
+    sha256: 89b2a440123eeaa400392ce1736e7d60ce9041843027d76819753c5a8246bfdd
+    folder: lib/samtools
+
+build:
+  number: 0
+  # the libgab package is only built for linux-64
+  skip: true  # [osx]
+  run_exports:
+    - {{ pin_subpackage(name, max_pin="x") }}
+  ignore_run_exports:
+    # libgab.a and libgzstream.a are linked statically
+    - libgab
+
+requirements:
+  build:
+    - make
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - {{ stdlib('c') }}
+  host:
+    - htslib
+    - libgab
+    - zlib
+
+test:
+  source_files:
+    - test
+  commands:
+    - bam2prof 2>&1 | grep -q "bam2prof"
+    # upstream regression tests (test/test.sh calls ../src/bam2prof)
+    - mkdir -p src && ln -s "$(command -v bam2prof)" src/bam2prof && cd test && bash test.sh
+
+about:
+  home: "https://github.com/grenaud/bam2prof"
+  dev_url: "https://github.com/grenaud/bam2prof"
+  doc_url: "https://github.com/grenaud/bam2prof/blob/v{{ version }}/README.md"
+  license: GPL-3.0-or-later
+  license_family: GPL3
+  license_file:
+    - LICENSE
+    - lib/samtools/LICENSE
+  summary: "Substitution (ancient DNA damage) profiles from BAM files"
+  description: |
+    bam2prof computes substitution frequencies along the 5' and 3' ends of
+    reads in a BAM file, to measure ancient DNA damage (deamination)
+    patterns. It can also report the base composition around the fragment
+    ends and the fragment length distribution. Reads need an MD tag.
+    The plotting script plot_bam2prof.py from the repository is not included.
+
+extra:
+  identifiers:
+    - doi:10.1093/bioinformatics/btaf407
+  recipe-maintainers:
+    - grenaud
