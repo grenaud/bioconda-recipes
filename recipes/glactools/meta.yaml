@@ -1,0 +1,68 @@
+{% set name = "glactools" %}
+{% set version = "1.0.11" %}
+# glactools compiles against samtools' bedidx.c and its headers, which the samtools
+# package does not install: only those four small objects (libst.a) are built from
+# the samtools release tarball, against the htslib package.
+{% set samtools_version = "1.24" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  - url: https://github.com/grenaud/glactools/archive/refs/tags/v{{ version }}.tar.gz
+    sha256: aa9813d07385773c8f3c5a6bd31181e968f27c3abdacd26dddbd8c7eda35cd65
+  - url: https://github.com/samtools/samtools/releases/download/{{ samtools_version }}/samtools-{{ samtools_version }}.tar.bz2
+    sha256: 89b2a440123eeaa400392ce1736e7d60ce9041843027d76819753c5a8246bfdd
+    folder: samtools
+
+build:
+  number: 0
+  # the libgab package is only built for linux-64
+  skip: true  # [osx]
+  run_exports:
+    - {{ pin_subpackage(name, max_pin="x") }}
+  ignore_run_exports:
+    # linked statically: libgab.a and libgzstream.a, and tabix.o taken from libtabixpp.a
+    - libgab
+    - tabixpp
+
+requirements:
+  build:
+    - make
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - {{ stdlib('c') }}
+  host:
+    - htslib
+    - libgab
+    - tabixpp
+    - zlib
+
+test:
+  # run_test.sh: VCF to ACF, union, root/ancestral alleles, view, index, f2/f3
+  # on a small made-up data set (also run at build time)
+
+about:
+  home: "https://grenaud.github.io/glactools/"
+  dev_url: "https://github.com/grenaud/glactools"
+  doc_url: "https://github.com/grenaud/glactools/blob/v{{ version }}/README.md"
+  license: GPL-3.0-only
+  license_family: GPL3
+  license_file:
+    - LICENSE
+    - samtools/LICENSE
+  summary: "Command-line toolset for the management of genotype likelihoods and allele counts"
+  description: |
+    glactools converts VCF, BAM, 23andMe, EIGENSTRAT, PLINK, BEAGLE and
+    AXT files into its genotype likelihood (GLF) and allele count (ACF)
+    formats, and filters, merges, indexes and summarizes them. It computes
+    summary statistics (D, F2, F3, average coalescence, distances) and
+    exports to formats such as TreeMix, EIGENSTRAT, PLINK, G-PhoCS, BetaScan
+    and FASTA. The R and Perl helper scripts of the repository are not included.
+
+extra:
+  identifiers:
+    - doi:10.1093/bioinformatics/btx749
+  recipe-maintainers:
+    - grenaud
